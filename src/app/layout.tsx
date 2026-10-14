@@ -30,8 +30,18 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
-		<html lang="es">
-			<body className="min-h-dvh">{children}</body>
+		/*
+		 * `suppressHydrationWarning` silencia falsos positivos de hidratación
+		 * provocados por extensiones del navegador que inyectan atributos en
+		 * <html>/<body> antes de que React hidrate (p. ej. ColorZilla añade
+		 * `cz-shortcut-listen="true"`). No modifica el HTML del servidor ni la
+		 * lógica de la aplicación; solo evita el aviso de discrepancia sobre
+		 * esos atributos ajenos a nosotros.
+		 */
+		<html lang="es" suppressHydrationWarning>
+			<body className="min-h-dvh" suppressHydrationWarning>
+				{children}
+			</body>
 		</html>
 	);
 }
