@@ -1,0 +1,27 @@
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: aula-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: aula_competicion
+      POSTGRES_USER: aula_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+
+    ports:
+      - "127.0.0.1:5432:5432"
+
+    volumes:
+      - postgres17_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aula_app -d aula_competicion"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres17_data:
