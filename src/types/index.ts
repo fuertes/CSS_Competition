@@ -421,3 +421,41 @@ export interface PurgeResult {
 	/** Grupos cuyo marcador se recalculó (al eliminar solo alumnos). */
 	groupsRecomputed: number;
 }
+
+/* ---------------------------------------------------------------------------
+ * Dungeon Coder: La Oca del Caos (partidas y grupos participantes).
+ *
+ * Fase 2: solo persistencia de partidas en estado inicial. No hay tablero,
+ * turnos, retos ni puntuación, y nada de esto se mezcla con la competición CSS.
+ * ------------------------------------------------------------------------- */
+
+/** Estado de una partida de La Oca. De momento solo existe el inicial. */
+export type OcaGameStatus = 'created';
+
+/** Grupo que participa en una partida, con su fecha de asociación. */
+export interface OcaGameParticipant {
+	id: string;
+	name: string;
+	color: string;
+	joined_at: string;
+}
+
+/** Partida tal como se administra en el panel docente. */
+export interface OcaGameRow {
+	id: string;
+	name: string;
+	status: OcaGameStatus;
+	created_by: string | null;
+	created_at: string;
+	updated_at: string;
+	participants: OcaGameParticipant[];
+}
+
+/** Partida tal como la ve un grupo (sin datos internos de administración). */
+export interface OcaGameForGroup {
+	id: string;
+	name: string;
+	status: OcaGameStatus;
+	created_at: string;
+	participants: OcaGameParticipant[];
+}

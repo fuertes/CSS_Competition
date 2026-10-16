@@ -13,6 +13,7 @@ import type {
 	GroupAccessCode,
 	GroupRow,
 	GroupScoreRow,
+	OcaGameRow,
 	PurgePreview,
 	PurgeResult,
 	PurgeScope,
@@ -356,4 +357,28 @@ export async function saveCssImport(
 		input,
 	);
 	return summary;
+}
+
+// --- La Oca del Caos ---------------------------------------------------------
+
+/** Partidas creadas (panel docente). */
+export async function listOcaGames(): Promise<OcaGameRow[]> {
+	const { games } = await getJson<{ games: OcaGameRow[] }>('/api/admin/oca/games');
+	return games;
+}
+
+/**
+ * Crea una partida de La Oca con los grupos indicados. El servidor vuelve a
+ * comprobar que los grupos existen y están activos.
+ */
+export async function createOcaGame(input: {
+	name: string;
+	groupIds: string[];
+}): Promise<OcaGameRow> {
+	const { game } = await sendJson<{ ok: boolean; game: OcaGameRow }>(
+		'/api/admin/oca/games',
+		'POST',
+		input,
+	);
+	return game;
 }

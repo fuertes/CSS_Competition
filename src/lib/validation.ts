@@ -208,6 +208,30 @@ export const cssImportSaveSchema = z.object({
 		.max(100, 'Demasiados selectores'),
 });
 
+/**
+ * Nombre de una partida de La Oca del Caos. Igual que el resto de nombres de la
+ * aplicación: se recorta y se acota; la comprobación real de "no vacío" vuelve a
+ * hacerse en el servidor.
+ */
+export const ocaGameNameSchema = z
+	.string()
+	.trim()
+	.min(1, 'El nombre es obligatorio')
+	.max(80, 'Máximo 80 caracteres');
+
+/**
+ * Alta de una partida de La Oca: nombre + grupos participantes.
+ *
+ * `groupIds` son identificadores (UUID) que el servidor vuelve a contrastar
+ * contra la base de datos (existencia y estado activo); nunca se confía en la
+ * lista del cliente. Se exige al menos un grupo. No se impone un máximo de
+ * grupos: el diseño aprobado no define ese límite, así que no se inventa.
+ */
+export const createOcaGameSchema = z.object({
+	name: ocaGameNameSchema,
+	groupIds: z.array(z.uuid()).min(1, 'Selecciona al menos un grupo'),
+});
+
 /** Acciones de asignación admitidas por el endpoint del panel. */
 export const assignmentActionSchema = z.discriminatedUnion('action', [
 	assignmentSchema.extend({ action: z.literal('confirm') }),
@@ -239,3 +263,4 @@ export type CssImportAnalyzeInput = z.infer<typeof cssImportAnalyzeSchema>;
 export type CssImportSaveInput = z.infer<typeof cssImportSaveSchema>;
 export type PurgeScopeInput = z.infer<typeof purgeScopeSchema>;
 export type PurgeInput = z.infer<typeof purgeSchema>;
+export type CreateOcaGameInput = z.infer<typeof createOcaGameSchema>;

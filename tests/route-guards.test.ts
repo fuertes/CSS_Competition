@@ -8,9 +8,21 @@ import { classifyRoute } from '@/lib/auth/route-guards';
  */
 describe('classifyRoute — áreas protegidas', () => {
 	const adminPages = ['/admin', '/admin/css', '/admin/oca', '/admin/oca/partidas'];
-	const adminApis = ['/api/admin', '/api/admin/groups', '/api/admin/oca', '/api/admin/oca/partidas'];
+	const adminApis = [
+		'/api/admin',
+		'/api/admin/groups',
+		'/api/admin/oca',
+		'/api/admin/oca/partidas',
+		'/api/admin/oca/games',
+	];
 	const groupPages = ['/oca', '/oca/tablero', '/competicion', '/competicion/oca'];
-	const groupApis = ['/api/oca', '/api/oca/estado', '/api/competicion/estado', '/api/competicion/entregar'];
+	const groupApis = [
+		'/api/oca',
+		'/api/oca/estado',
+		'/api/oca/games',
+		'/api/competicion/estado',
+		'/api/competicion/entregar',
+	];
 
 	it.each(adminPages)('%s exige sesión de administrador', (pathname) => {
 		const areas = classifyRoute(pathname);
