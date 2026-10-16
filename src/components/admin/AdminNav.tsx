@@ -10,6 +10,7 @@ const SECTIONS = [
 	{ href: '/admin/assignments', label: 'Asignaciones' },
 	{ href: '/admin/exercises', label: 'Ejercicios' },
 	{ href: '/admin/css', label: 'Competición CSS' },
+	{ href: '/admin/oca', label: 'La Oca' },
 	{ href: '/admin/scores', label: 'Puntuaciones' },
 	{ href: '/admin/settings', label: 'Configuración' },
 	{ href: '/admin/maintenance', label: 'Mantenimiento' },

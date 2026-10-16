@@ -73,6 +73,13 @@ ranking público se actualiza mediante **sondeo periódico** del endpoint
   **revisar y editar** antes de guardar: cambiar el valor esperado, ajustar los
   puntos por propiedad, excluir propiedades, reordenar y eliminar selectores.
   El guardado es **transaccional** y revalida todo en el servidor.
+- **La Oca del Caos (en preparación)** (`/oca` y `/admin/oca`): punto de entrada
+  del nuevo modo de juego *Dungeon Coder: La Oca del Caos*, **separado** de la
+  competición CSS y con su propio estado futuro. Reutiliza la sesión de grupo
+  (`/oca`) y la de administrador (`/admin/oca`) ya existentes. **Todavía no
+  implementa mecánicas** (ni tablero, ni turnos, ni retos, ni puntuación) y no
+  toca la base de datos; la puntuación de CSS Competition es independiente y no
+  se ve afectada. Ver más abajo.
 - **Sesiones de administrador** propias: cookie `HttpOnly` + token aleatorio
   cuyo hash se guarda en PostgreSQL (`admin_sessions`).
 
@@ -525,6 +532,36 @@ se hace en el servidor con PostCSS (nunca con expresiones regulares):
 
 ---
 
+## 🎲 La Oca del Caos (en preparación)
+
+**Dungeon Coder: La Oca del Caos** se incorpora como un **nuevo modo de juego**
+dentro de esta misma aplicación, reutilizando la plataforma existente sin
+duplicarla:
+
+- **Área de grupos** (`/oca`): exige la **sesión de grupo** ya existente (la
+  misma de la competición). Un visitante sin sesión sigue el flujo de acceso de
+  grupo (`/competicion/entrar`).
+- **Panel docente** (`/admin/oca`): exige la **sesión de administrador** ya
+  existente.
+- La autorización de ambas áreas la resuelve el `proxy` (`/oca/**`,
+  `/api/oca/**`, `/admin/oca/**`) reutilizando el sistema actual; **no** hay otro
+  inicio de sesión, otro código de acceso ni otro panel.
+
+**Estado (Fase 1):** es solo un **punto de entrada informativo**. Aún **no hay**
+tablero, turnos, retos, cristales, cartas, trampas, partidas persistentes ni
+puntuación, y las páginas **no consultan ni modifican la base de datos**.
+
+**Separación estricta de CSS Competition:** La Oca tendrá su propio espacio y,
+en fases posteriores, su propia puntuación y clasificación. **Nunca** suma puntos
+ni cristales a la puntuación de CSS Competition, cuya lógica permanece intacta.
+
+> **Limitación pendiente.** El documento funcional original de La Oca del Caos
+> no está disponible en el repositorio. Sus reglas (tablero, zonas, retos,
+> economía, etc.) se definirán y aprobarán antes de implementarlas; consúltese
+> [`docs/auditoria-integracion-oca-del-caos.md`](./docs/auditoria-integracion-oca-del-caos.md).
+
+---
+
 ## 🛡️ Modelo de seguridad
 
 - **El navegador nunca habla con PostgreSQL.** Toda la persistencia ocurre en
@@ -590,11 +627,12 @@ src/
       ranking/page.tsx     Ranking público
       alumnos/page.tsx     Portal del alumno
       competicion/         Competición CSS (page.tsx, entrar/page.tsx)
+      oca/page.tsx         La Oca del Caos (en preparación)
       login/page.tsx       Acceso de administrador
     admin/                 Panel docente (layout propio)
       layout.tsx
       page.tsx             students/ groups/ assignments/ exercises/
-      …                    css/ scores/ settings/ maintenance/
+      …                    css/ oca/ scores/ settings/ maintenance/
     api/                   Route Handlers (equivalente a los endpoints de Astro)
       ranking/route.ts     Ranking público
       submit-code/route.ts Validación atómica de códigos
@@ -610,6 +648,8 @@ src/
     auth/session.ts        Cookies y sesiones administrativas
     auth/group-session.ts  Cookies y sesiones de grupo (competición CSS)
     auth/request-context.ts Identidad verificada (cabeceras internas)
+    auth/route-guards.ts   Clasificación de rutas protegidas (puro, testeable)
+    oca/module.ts          Identidad del módulo La Oca del Caos (en preparación)
     css/selector.ts        Motor de selectores (dividir, validar y canonicalizar)
     css/validator.ts       Análisis y validación del CSS con PostCSS
     css/importer.ts        Análisis del bloque CSS de referencia y revalidación
@@ -637,7 +677,7 @@ tests/                     Pruebas unitarias (vitest)
 ```bash
 npm run typecheck      # 0 errores esperado
 npm run lint           # eslint (sin errores ni avisos)
-npm test               # 150 pruebas unitarias (selector, importador, navegación, validación y cifrado de códigos)
+npm test               # 186 pruebas unitarias (selector, importador, navegación, validación, cifrado de códigos y permisos de rutas)
 npm run build          # compila el SSR (Next.js 16 + Turbopack)
 npm run db:check       # comprueba conexión, tablas, funciones y el generador de códigos
 npm run db:penalty     # comprobaciones de puntuación por selector y penalización (base de datos)
