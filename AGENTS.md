@@ -79,10 +79,13 @@ src/
       alumnos/page.tsx  # /alumnos          portal del alumno
       login/page.tsx    # /login            acceso del profesorado
       competicion/…     # /competicion, /competicion/entrar
+      oca/page.tsx      # /oca             La Oca del Caos (en preparación)
     admin/              # Panel docente (protegido): layout + páginas
     api/                # Route Handlers (ver §7 y §10)
   components/           # Componentes (los interactivos llevan 'use client')
   lib/                  # Lógica de negocio y acceso a datos (ver abajo)
+    auth/route-guards.ts# Clasificación de rutas protegidas (puro, testeable)
+    oca/module.ts       # Identidad del módulo La Oca del Caos (en preparación)
   types/index.ts        # Tipos del dominio y de las filas de PostgreSQL
 database/migrations/    # Migraciones SQL numeradas 0001–0014 (fuente del esquema)
 scripts/                # Migración, comprobación, datos de prueba y smoke E2E
@@ -92,10 +95,12 @@ tests/                  # Suites de Vitest sobre la lógica pura
 Límite **servidor/cliente** en `src/lib/` (respétalo):
 
 * **Solo servidor** (`import 'server-only'`): `db.ts`, `config.ts`,
-  `data/postgres.ts`, `data/competition.ts`, `data/maintenance.ts`, `auth/*`.
+  `data/postgres.ts`, `data/competition.ts`, `data/maintenance.ts`,
+  `auth/session.ts`, `auth/group-session.ts`, `auth/request-context.ts`.
 * **Seguros en cliente**: `data/admin.ts`, `data/ranking.ts`, `format.ts`,
   `ranking.ts`, `codes.ts`, `maintenance.ts`, `competition/draft.ts`,
-  `crypto/access-code.ts`, `validation.ts`, `scoring.ts`, `types`.
+  `crypto/access-code.ts`, `validation.ts`, `scoring.ts`, `types`,
+  `auth/route-guards.ts`, `oca/module.ts`.
 
 Los componentes de `src/components/**/*.tsx` llevan `'use client'` cuando
 necesitan interactividad; los de `src/components/ui/*.tsx` son de servidor.
@@ -257,7 +262,7 @@ Después de cambios relevantes, ejecuta en este orden:
 
 1. `npm run typecheck` (`tsc --noEmit`).
 2. `npm run lint` (`eslint`).
-3. `npm test` (Vitest; hoy 9 suites / 150 pruebas sobre la lógica pura).
+3. `npm test` (Vitest; hoy 13 suites / 186 pruebas sobre la lógica pura).
 4. `npm run build` (`next build`).
 5. Si hay base de datos disponible: `npm run db:check` (conexión + esquema, **solo
    lectura**).

@@ -12,6 +12,7 @@ const LINKS = [
 	{ href: '/ranking', label: 'Ranking' },
 	{ href: '/alumnos', label: 'Alumnos' },
 	{ href: '/competicion', label: 'Competición' },
+	{ href: '/oca', label: 'La Oca' },
 	{ href: '/admin', label: 'Panel' },
 ];
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { isDatabaseConfigured } from '@/lib/config';
 import { getRequestHost } from '@/lib/request-origin';
+import { classifyRoute } from '@/lib/auth/route-guards';
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth/session';
 import { GROUP_SESSION_COOKIE, verifyGroupSession } from '@/lib/auth/group-session';
 
@@ -18,38 +19,6 @@ import { GROUP_SESSION_COOKIE, verifyGroupSession } from '@/lib/auth/group-sessi
  */
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-
-/** Rutas de página que requieren sesión de administrador. */
-function isProtectedPage(pathname: string): boolean {
-	return pathname === '/admin' || pathname.startsWith('/admin/');
-}
-
-/** Endpoints del panel que requieren sesión de administrador. */
-function isAdminApi(pathname: string): boolean {
-	return pathname === '/api/admin' || pathname.startsWith('/api/admin/');
-}
-
-/** Página pública de acceso de grupo (sin sesión todavía). */
-function isCompetitionLoginPage(pathname: string): boolean {
-	return pathname === '/competicion/entrar' || pathname.startsWith('/competicion/entrar/');
-}
-
-/** Páginas de la competición que requieren sesión de grupo. */
-function isCompetitionPage(pathname: string): boolean {
-	const isUnder = pathname === '/competicion' || pathname.startsWith('/competicion/');
-	return isUnder && !isCompetitionLoginPage(pathname);
-}
-
-/** Endpoint público de acceso de grupo. */
-function isCompetitionLoginApi(pathname: string): boolean {
-	return pathname === '/api/competicion/entrar';
-}
-
-/** Endpoints de la competición que requieren sesión de grupo. */
-function isCompetitionApi(pathname: string): boolean {
-	const isUnder = pathname === '/api/competicion' || pathname.startsWith('/api/competicion/');
-	return isUnder && !isCompetitionLoginApi(pathname);
-}
 
 function json(message: string, status: number): NextResponse {
 	return NextResponse.json({ error: message }, { status });
@@ -73,10 +42,7 @@ function isCrossOrigin(request: NextRequest): boolean {
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
 	const { pathname } = request.nextUrl;
-	const adminPage = isProtectedPage(pathname);
-	const adminApi = isAdminApi(pathname);
-	const groupPage = isCompetitionPage(pathname);
-	const groupApi = isCompetitionApi(pathname);
+	const { adminPage, adminApi, groupPage, groupApi } = classifyRoute(pathname);
 
 	// Encabezados de identidad saneados: siempre se eliminan los del cliente.
 	const requestHeaders = new Headers(request.headers);
@@ -127,5 +93,7 @@ export const config = {
 		'/api/admin/:path*',
 		'/competicion/:path*',
 		'/api/competicion/:path*',
+		'/oca/:path*',
+		'/api/oca/:path*',
 	],
 };
