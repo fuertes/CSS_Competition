@@ -84,28 +84,32 @@ export async function revokeGroupSession(token: string | null | undefined): Prom
 }
 
 /**
- * Escribe la cookie de sesión de grupo en la respuesta. `Secure` se activa en
- * producción (HTTPS).
+ * Escribe la cookie de sesión de grupo en la respuesta. `secure` se decide
+ * fuera, según el esquema real de la petición (`resolveCookieSecure`).
  */
-export function setGroupSessionCookie(response: NextResponse, token: string): void {
+export function setGroupSessionCookie(
+	response: NextResponse,
+	token: string,
+	secure: boolean,
+): void {
 	response.cookies.set({
 		name: GROUP_SESSION_COOKIE,
 		value: token,
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: process.env.NODE_ENV === 'production',
+		secure,
 		path: '/',
 		maxAge: GROUP_SESSION_TTL_SECONDS,
 	});
 }
 
-export function clearGroupSessionCookie(response: NextResponse): void {
+export function clearGroupSessionCookie(response: NextResponse, secure: boolean): void {
 	response.cookies.set({
 		name: GROUP_SESSION_COOKIE,
 		value: '',
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: process.env.NODE_ENV === 'production',
+		secure,
 		path: '/',
 		maxAge: 0,
 	});

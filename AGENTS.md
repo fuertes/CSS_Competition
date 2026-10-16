@@ -281,6 +281,7 @@ Variables de entorno (`.env`, ignorado por git; plantilla en `.env.example`):
 | `POSTGRES_PASSWORD` | docker | Contraseña del contenedor local (`db:up`) |
 | `NEXT_PUBLIC_COMPETITION_NAME` | público | Nombre visible de la competición |
 | `ACCESS_CODE_ENC_KEY` | servidor | Clave AES-256-GCM (32 bytes) para cifrar los códigos de acceso |
+| `COOKIE_SECURE` | servidor | Fuerza la marca `Secure` de las cookies (`true`/`false`). Vacío: se decide según el esquema de la petición (permite HTTP sin TLS) |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | servidor | Administrador inicial (`db:seed-admin`) |
 | `APP_URL` | scripts | URL base para `db:smoke` (por defecto `http://localhost:3000`) |
 

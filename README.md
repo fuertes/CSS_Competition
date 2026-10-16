@@ -146,6 +146,7 @@ ranking público se actualiza mediante **sondeo periódico** del endpoint
 | `ADMIN_PASSWORD`             | Contraseña del primer administrador (solo `db:seed-admin`). |
 | `ADMIN_NAME`                 | Nombre mostrado del administrador (opcional).              |
 | `ACCESS_CODE_ENC_KEY`        | Clave (32 bytes en base64 o 64 caracteres hex) para cifrar los códigos de acceso de grupo. **Solo de servidor.** Sin ella, los códigos nuevos se generan y verifican igual, pero no pueden volver a mostrarse en el panel. Genera una con `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`. |
+| `COOKIE_SECURE`              | Fuerza la marca `Secure` de las cookies de sesión (`true`/`false`). Si se deja vacía, se decide según el esquema real de la petición (`https` → `Secure`, `http` → no `Secure`), de modo que la sesión funciona sobre HTTP sin TLS por IP pública. **Solo de servidor.** |
 
 El archivo `.env.example` contiene valores de ejemplo **no reales**.
 

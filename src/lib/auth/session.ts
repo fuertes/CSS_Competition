@@ -82,28 +82,29 @@ export async function deleteSession(token: string): Promise<void> {
 }
 
 /**
- * Escribe la cookie de sesión en la respuesta. `Secure` se activa en
- * producción (HTTPS) y se omite en desarrollo local sobre HTTP.
+ * Escribe la cookie de sesión en la respuesta. `secure` se decide fuera, según
+ * el esquema real de la petición (`resolveCookieSecure`), para que la sesión
+ * funcione tanto sobre HTTPS como sobre HTTP en entornos de laboratorio.
  */
-export function setSessionCookie(response: NextResponse, token: string): void {
+export function setSessionCookie(response: NextResponse, token: string, secure: boolean): void {
 	response.cookies.set({
 		name: SESSION_COOKIE,
 		value: token,
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: process.env.NODE_ENV === 'production',
+		secure,
 		path: '/',
 		maxAge: SESSION_TTL_SECONDS,
 	});
 }
 
-export function clearSessionCookie(response: NextResponse): void {
+export function clearSessionCookie(response: NextResponse, secure: boolean): void {
 	response.cookies.set({
 		name: SESSION_COOKIE,
 		value: '',
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: process.env.NODE_ENV === 'production',
+		secure,
 		path: '/',
 		maxAge: 0,
 	});

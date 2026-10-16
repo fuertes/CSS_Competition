@@ -122,7 +122,8 @@ PGPORT="5432"
 - Si la base de datos está en la misma instancia, el host podría ser `localhost`; si está en otro servicio o servidor, utiliza su host real y comprueba las reglas de red.
 - Codifica correctamente en URL los caracteres especiales que aparezcan en la contraseña de `DATABASE_URL`.
 - `NEXT_PUBLIC_*` se expone al navegador en aplicaciones Next.js. No pongas secretos en variables con ese prefijo.
-- Si utilizas HTTP, las credenciales y los datos no estarán cifrados en tránsito. Para un servicio público, configura HTTPS mediante un proxy inverso y un certificado TLS.
+- Si sirves la aplicación sobre HTTP (sin TLS), deja `COOKIE_SECURE=false` (o vacía) para que el navegador no descarte la cookie de sesión; con HTTPS puedes poner `COOKIE_SECURE=true`. Las redirecciones ya se anclan al `Host` de la petición, así que se conserva la IP o el dominio con el que entra el usuario.
+- Si utilizas HTTP, las credenciales y los datos no estarán cifrados en tránsito. Para un servicio público, configura HTTPS mediante un proxy inverso y un certificado TLS. Si hay proxy inverso, reenvía `Host` y `X-Forwarded-Proto` (por ejemplo, `proxy_set_header Host $host;` y `proxy_set_header X-Forwarded-Proto $scheme;`).
 
 ### 6.3. Guardar el archivo en nano
 

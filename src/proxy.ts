@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { isDatabaseConfigured } from '@/lib/config';
+import { getRequestHost } from '@/lib/request-origin';
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth/session';
 import { GROUP_SESSION_COOKIE, verifyGroupSession } from '@/lib/auth/group-session';
 
@@ -56,15 +57,15 @@ function json(message: string, status: number): NextResponse {
 
 /**
  * En peticiones que cambian estado desde otro origen, el origen debe coincidir
- * con el servidor (defensa contra peticiones cross-site).
+ * con el host público de la petición (defensa contra peticiones cross-site).
  */
 function isCrossOrigin(request: NextRequest): boolean {
 	if (!MUTATING_METHODS.has(request.method)) return false;
 	const origin = request.headers.get('origin');
-	const host = request.headers.get('host');
-	if (!origin || !host) return false;
+	const requestHost = getRequestHost(request);
+	if (!origin || !requestHost) return false;
 	try {
-		return new URL(origin).host !== host;
+		return new URL(origin).host !== requestHost;
 	} catch {
 		return true;
 	}
