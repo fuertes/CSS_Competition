@@ -1,16 +1,23 @@
-import { NextResponse } from 'next/server';
+import type { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { credentialsSchema } from '@/lib/validation';
 import { isDatabaseConfigured } from '@/lib/config';
 import { getPool } from '@/lib/db';
+import { resolveCookieSecure } from '@/lib/auth/cookie-options';
 import { createSession, createSessionToken, setSessionCookie } from '@/lib/auth/session';
+import { relativeRedirect } from '@/lib/http';
 
 export const dynamic = 'force-dynamic';
 
-/** Inicia sesión de administrador con correo y contraseña (sesión en BD). */
+/**
+ * Inicia sesión de administrador con correo y contraseña (sesión en BD).
+ *
+ * Todas las respuestas de navegación usan rutas relativas (`relativeRedirect`),
+ * de modo que el usuario permanece en el mismo host/IP con el que accedió.
+ */
 export async function POST(request: NextRequest): Promise<NextResponse> {
 	if (!isDatabaseConfigured()) {
-		return NextResponse.redirect(new URL('/login?reason=config', request.url), 303);
+		return relativeRedirect('/login?reason=config');
 	}
 
 	const form = await request.formData();
@@ -19,12 +26,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 		password: String(form.get('password') ?? ''),
 	});
 	if (!parsed.success) {
-		return NextResponse.redirect(new URL('/login?error=datos', request.url), 303);
+		return relativeRedirect('/login?error=datos');
 	}
 
 	const pool = getPool();
 	if (!pool) {
-		return NextResponse.redirect(new URL('/login?reason=config', request.url), 303);
+		return relativeRedirect('/login?reason=config');
 	}
 
 	// Mensaje único: no se revela si el correo existe o no.
@@ -41,11 +48,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 		user = rows[0] ?? null;
 	} catch (error) {
 		console.error('[auth/signin] Error al consultar el administrador:', error);
-		return NextResponse.redirect(new URL('/login?error=credenciales', request.url), 303);
+		return relativeRedirect('/login?error=credenciales');
 	}
 
 	if (!user) {
-		return NextResponse.redirect(new URL('/login?error=credenciales', request.url), 303);
+		return relativeRedirect('/login?error=credenciales');
 	}
 
 	try {
@@ -55,11 +62,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 			[parsed.data.password, user.id],
 		);
 		if (!rows[0]?.match) {
-			return NextResponse.redirect(new URL('/login?error=credenciales', request.url), 303);
+			return relativeRedirect('/login?error=credenciales');
 		}
 	} catch (error) {
 		console.error('[auth/signin] Error al verificar la contraseña:', error);
-		return NextResponse.redirect(new URL('/login?error=credenciales', request.url), 303);
+		return relativeRedirect('/login?error=credenciales');
 	}
 
 	const token = createSessionToken();
@@ -67,10 +74,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 		await createSession(user.id, token);
 	} catch (error) {
 		console.error('[auth/signin] No se pudo registrar la sesión:', error);
-		return NextResponse.redirect(new URL('/login?error=credenciales', request.url), 303);
+		return relativeRedirect('/login?error=credenciales');
 	}
 
-	const response = NextResponse.redirect(new URL('/admin', request.url), 303);
-	setSessionCookie(response, token);
+	const response = relativeRedirect('/admin');
+	setSessionCookie(response, token, resolveCookieSecure(request));
 	return response;
 }

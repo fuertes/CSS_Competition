@@ -62,7 +62,7 @@ export async function DELETE(request: NextRequest): Promise<Response> {
 	const pool = getPool();
 	if (!pool) return errorResponse('La base de datos no está configurada.', 503);
 
-	const id = new URL(request.url).searchParams.get('id');
+	const id = request.nextUrl.searchParams.get('id');
 	if (!id) return errorResponse('Falta el identificador del ejercicio.', 422);
 
 	try {

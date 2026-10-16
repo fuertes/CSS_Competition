@@ -69,7 +69,7 @@ export async function DELETE(request: NextRequest): Promise<Response> {
 	const pool = getPool();
 	if (!pool) return errorResponse('La base de datos no está configurada.', 503);
 
-	const parsed = deleteRoundSchema.safeParse({ id: new URL(request.url).searchParams.get('id') });
+	const parsed = deleteRoundSchema.safeParse({ id: request.nextUrl.searchParams.get('id') });
 	if (!parsed.success) return errorResponse('Revisa los datos introducidos.', 422);
 
 	try {
