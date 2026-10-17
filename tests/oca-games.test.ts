@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Pool } from 'pg';
 import { createOcaGame, listOcaGamesForGroup } from '@/lib/data/oca';
 import { normalizeOcaGroupIds } from '@/lib/oca/participants';
+import { OCA_INITIAL_POSITION, isValidOcaBoardNumber } from '@/lib/oca/board';
 
 /**
  * Pruebas de la capa de datos de La Oca con un `Pool` SIMULADO.
@@ -30,12 +31,13 @@ function toArray(value: unknown): string[] {
 	return [value as string];
 }
 
-function participantRow(gameId: string, groupId: string, name: string) {
+function participantRow(gameId: string, groupId: string, name: string, position = 1) {
 	return {
 		game_id: gameId,
 		id: groupId,
 		name,
 		color: '#6366f1',
+		position,
 		joined_at: new Date('2026-01-01T00:00:00.000Z'),
 	};
 }
@@ -206,6 +208,53 @@ describe('createOcaGame', () => {
 	});
 });
 
+describe('createOcaGame — posiciones iniciales', () => {
+	it('inicializa la posición de TODOS los participantes en la casilla 1', async () => {
+		const fake = createFakePool(standardRespond);
+
+		await createOcaGame(fake.pool, { name: 'Jornada 1', groupIds: [G1, G2], createdBy: null });
+
+		const insert = fake.calls.find((call) =>
+			lower(call).includes('insert into public.oca_game_participants'),
+		);
+		// El tercer parámetro de la inserción es la posición inicial del tablero.
+		expect(insert?.values[2]).toBe(OCA_INITIAL_POSITION);
+		expect(OCA_INITIAL_POSITION).toBe(1);
+		expect(insert?.text.toLowerCase()).toContain('position');
+	});
+
+	it('devuelve la posición de cada participante recién creado', async () => {
+		const fake = createFakePool(standardRespond);
+
+		const game = await createOcaGame(fake.pool, {
+			name: 'Jornada 1',
+			groupIds: [G1, G2],
+			createdBy: null,
+		});
+
+		expect(game.participants).toHaveLength(2);
+		for (const participant of game.participants) {
+			expect(participant.position).toBe(OCA_INITIAL_POSITION);
+			expect(isValidOcaBoardNumber(participant.position)).toBe(true);
+		}
+	});
+
+	it('consulta los participantes con el identificador de partida como ARRAY (any($1::uuid[]))', async () => {
+		const fake = createFakePool(standardRespond);
+
+		await createOcaGame(fake.pool, { name: 'Jornada 1', groupIds: [G1], createdBy: null });
+
+		const select = fake.calls.find(
+			(call) => lower(call).includes('from public.oca_game_participants p') && lower(call).includes('join public.groups g'),
+		);
+		expect(select).toBeDefined();
+		// `p.game_id = any($1::uuid[])` exige un array: un escalar rompería la consulta.
+		expect(Array.isArray(select?.values[0])).toBe(true);
+		expect(select?.values[0]).toEqual([GAME_ID]);
+		expect(select?.text.toLowerCase()).toContain('p.position');
+	});
+});
+
 describe('listOcaGamesForGroup — aislamiento por grupo', () => {
 	it('consulta solo las partidas del grupo recibido y lo pasa como parámetro', async () => {
 		const fake = createFakePool((call) => {
@@ -232,5 +281,34 @@ describe('listOcaGamesForGroup — aislamiento por grupo', () => {
 		const query = fake.calls.find((call) => lower(call).includes('from public.oca_games gm'));
 		expect(query?.values).toEqual([G1]);
 		expect(lower(query!)).toContain('where p.group_id = $1');
+	});
+
+	it('mantiene la posición de un grupo independiente en cada partida', async () => {
+		const GAME_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+		const fake = createFakePool((call) => {
+			if (lower(call).includes('from public.oca_games gm')) {
+				return {
+					rows: [
+						{ id: GAME_ID, name: 'A', status: 'created', created_at: new Date() },
+						{ id: GAME_B, name: 'B', status: 'created', created_at: new Date() },
+					],
+				};
+			}
+			if (lower(call).includes('from public.oca_game_participants p')) {
+				const rows = toArray(call.values[0]).map((gameId) =>
+					gameId === GAME_ID
+						? participantRow(GAME_ID, G1, 'Alfa', 7)
+						: participantRow(GAME_B, G1, 'Alfa', 3),
+				);
+				return { rows };
+			}
+			return standardRespond(call);
+		});
+
+		const games = await listOcaGamesForGroup(fake.pool, G1);
+
+		const byId = new Map(games.map((game) => [game.id, game]));
+		expect(byId.get(GAME_ID)?.participants[0]?.position).toBe(7);
+		expect(byId.get(GAME_B)?.participants[0]?.position).toBe(3);
 	});
 });

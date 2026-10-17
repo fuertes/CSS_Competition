@@ -277,6 +277,24 @@ npm run db:smoke       # smoke test end-to-end (el servidor debe estar en marcha
   recuentos reales. **Conserva** los ejercicios y sus soluciones, las
   competiciones (`competition_rounds`), la configuración y las cuentas de
   administración.
+- `0015_oca_games.sql` — **La Oca del Caos: partidas y participantes**. Crea
+  `oca_games (id, name, status, created_by, created_at, updated_at)` con
+  `status in ('created')` (por ahora solo existe el estado inicial), y
+  `oca_game_participants (game_id, group_id, joined_at)` con clave primaria
+  compuesta `(game_id, group_id)` —impide asociar dos veces el mismo grupo— y
+  claves foráneas a `groups` y a `admin_users` con borrado en cascada. Reutiliza
+  los grupos existentes; **no** crea grupos ni alumnos duplicados.
+- `0016_oca_positions.sql` — **La Oca del Caos: posiciones en el tablero**.
+  Amplía `oca_game_participants` con la columna `position integer not null
+  default 1` (casilla inicial 1) y la restricción
+  `oca_game_participants_position_range check (position between 1 and 40)`, que
+  garantiza que toda posición persistida identifica una casilla válida del
+  tablero. Requiere que `0015` esté aplicada y no toca ninguna tabla de CSS.
+
+> **Estado de las migraciones de La Oca.** `0015` y `0016` están incluidas en el
+> repositorio pero **no se han aplicado** sobre la base de datos: ejecuta
+> `npm run db:migrate` cuando autorices aplicarlas. Hasta entonces,
+> `npm run db:check` reportará estas migraciones como pendientes.
 
 El runner (`scripts/migrate.mjs`) aplica cada migración **dentro de una
 transacción**, registra la versión en `schema_migrations` y usa un
@@ -547,17 +565,36 @@ duplicarla:
   `/api/oca/**`, `/admin/oca/**`) reutilizando el sistema actual; **no** hay otro
   inicio de sesión, otro código de acceso ni otro panel.
 
-**Estado (Fase 1):** es solo un **punto de entrada informativo**. Aún **no hay**
-tablero, turnos, retos, cristales, cartas, trampas, partidas persistentes ni
-puntuación, y las páginas **no consultan ni modifican la base de datos**.
+**Estado actual:**
 
-**Separación estricta de CSS Competition:** La Oca tendrá su propio espacio y,
-en fases posteriores, su propia puntuación y clasificación. **Nunca** suma puntos
-ni cristales a la puntuación de CSS Competition, cuya lógica permanece intacta.
+- **Fase 1 — puntos de entrada.** Rutas, navegación y protección de sesión.
+- **Fase 2 — partidas persistentes.** El profesorado crea partidas en estado
+  inicial y elige sus grupos participantes (`/api/admin/oca/games`). Cada grupo
+  consulta las partidas en las que participa.
+- **Fase 3 — tablero y posiciones.** Tablero de **40 casillas numeradas** (1..40)
+  definido de forma **determinista y centralizada** en
+  `src/lib/oca/board.ts`, con catálogo tipado de las seis zonas temáticas
+  previstas. Cada participante tiene una **posición persistente por partida**
+  (`oca_game_participants.position`, inicial 1). El docente selecciona una
+  partida y consulta el tablero con las posiciones de todos los grupos; cada
+  grupo consulta el tablero y su propia posición en `/oca`.
 
-> **Limitación pendiente.** El documento funcional original de La Oca del Caos
-> no está disponible en el repositorio. Sus reglas (tablero, zonas, retos,
-> economía, etc.) se definirán y aprobarán antes de implementarlas; consúltese
+**Todavía NO existen** dados, movimiento, turnos, retos, cristales, cartas,
+trampas, efectos, victoria ni clasificación. La vista del tablero es **solo
+lectura**: no hay ningún endpoint ni control que desplace a un grupo, y el
+servidor no acepta una posición enviada por el cliente.
+
+**Separación estricta de CSS Competition:** La Oca escribe únicamente en sus
+propias tablas `oca_*`. **Nunca** suma puntos ni cristales a la puntuación de
+CSS Competition, cuya lógica permanece intacta.
+
+> **Limitación pendiente (Fase 3).** El documento funcional original de La Oca
+> del Caos no está disponible en el repositorio, por lo que **no existe una
+> distribución aprobada** que determine qué casillas forman cada zona ni los
+> tipos y efectos de las casillas. El tablero se prepara con sus 40 casillas
+> numeradas y el catálogo de las seis zonas, dejando la **asignación casilla →
+> zona explícitamente pendiente** (`OCA_ZONE_DISTRIBUTION_APPROVED = false` y
+> `zoneId = null` en cada casilla). Consúltese
 > [`docs/auditoria-integracion-oca-del-caos.md`](./docs/auditoria-integracion-oca-del-caos.md).
 
 ---
@@ -621,13 +658,13 @@ src/
   app/                     App Router de Next.js
     layout.tsx             Layout raíz (html/body, metadatos, viewport)
     globals.css            Estilos globales (Tailwind v4)
+    page.tsx               Portada (landing a medida, fuera de (site))
     (site)/                Grupo de rutas públicas (Header/Footer + enlace de salto)
       layout.tsx
-      page.tsx             Home
       ranking/page.tsx     Ranking público
       alumnos/page.tsx     Portal del alumno
       competicion/         Competición CSS (page.tsx, entrar/page.tsx)
-      oca/page.tsx         La Oca del Caos (en preparación)
+      oca/page.tsx         La Oca del Caos (tablero y posiciones, solo lectura)
       login/page.tsx       Acceso de administrador
     admin/                 Panel docente (layout propio)
       layout.tsx
@@ -639,8 +676,11 @@ src/
       student/portal/      Portal del alumno
       competicion/         Acceso y entregas de la competición CSS
       admin/               CRUD del panel (grupos, alumnos, ejercicios, css, …)
+      admin/oca/games/     Partidas de La Oca del Caos (panel docente)
       auth/                Inicio/cierre de sesión de administrador
   components/              Islas React (panel, alumnos, ranking, competición) y UI
+    marketing/             Landing de portada (presentacional)
+    oca/                   Tablero de La Oca (presentacional, solo lectura)
     ui/                    Componentes de servidor (Alert, Card, ConfigNotice, …)
   lib/
     db.ts                  Pool de `pg` (solo servidor)
@@ -649,7 +689,9 @@ src/
     auth/group-session.ts  Cookies y sesiones de grupo (competición CSS)
     auth/request-context.ts Identidad verificada (cabeceras internas)
     auth/route-guards.ts   Clasificación de rutas protegidas (puro, testeable)
-    oca/module.ts          Identidad del módulo La Oca del Caos (en preparación)
+    oca/module.ts          Identidad del módulo La Oca del Caos
+    oca/board.ts           Tablero de 40 casillas y zonas (puro y determinista)
+    oca/participants.ts    Reglas puras de selección de grupos participantes
     css/selector.ts        Motor de selectores (dividir, validar y canonicalizar)
     css/validator.ts       Análisis y validación del CSS con PostCSS
     css/importer.ts        Análisis del bloque CSS de referencia y revalidación
@@ -657,6 +699,7 @@ src/
     crypto/access-code.ts  Cifrado recuperable (AES-256-GCM) del código de acceso de grupo
     data/postgres.ts       Acceso a datos del servidor (SQL)
     data/competition.ts    Datos de la competición CSS (solo servidor)
+    data/oca.ts            Partidas y posiciones de La Oca (solo servidor)
     data/admin.ts          Cliente del panel en el navegador (fetch a /api/admin/*)
     data/maintenance.ts    Purga masiva de grupos/alumnos (solo servidor)
     data/ranking.ts        Cliente de ranking en el navegador (fetch a /api/ranking)
@@ -677,9 +720,9 @@ tests/                     Pruebas unitarias (vitest)
 ```bash
 npm run typecheck      # 0 errores esperado
 npm run lint           # eslint (sin errores ni avisos)
-npm test               # 186 pruebas unitarias (selector, importador, navegación, validación, cifrado de códigos y permisos de rutas)
+npm test               # 239 pruebas unitarias (selector, importador, navegación, validación, cifrado de códigos, permisos de rutas y La Oca del Caos)
 npm run build          # compila el SSR (Next.js 16 + Turbopack)
-npm run db:check       # comprueba conexión, tablas, funciones y el generador de códigos
+npm run db:check       # comprueba conexión, tablas, funciones, generador de códigos y el esquema de La Oca
 npm run db:penalty     # comprobaciones de puntuación por selector y penalización (base de datos)
 npm run db:competition # comprobaciones de aislamiento de puntuación por competición (base de datos)
 npm run db:delete      # comprobaciones de borrado de competiciones (base de datos)

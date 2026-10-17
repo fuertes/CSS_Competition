@@ -52,6 +52,9 @@ const REQUIRED_TABLES = [
   'css_submission_requests',
   // Participación explícita por competición (migración 0012).
   'competition_participants',
+  // La Oca del Caos (migraciones 0015 y 0016).
+  'oca_games',
+  'oca_game_participants',
 ];
 
 async function main() {
@@ -353,9 +356,46 @@ async function main() {
     `  ${fnNames.has('purge_entities') ? '✔' : '✖'} función purge_entities(scope, confirmation, actor_id)`,
   );
 
+  // La Oca del Caos (migraciones 0015 y 0016). Las consultas toleran la
+  // ausencia de las tablas: comprueban el catálogo en lugar de forzar un cast.
+  const ocaParticipantColumns = await pool.query(
+    `select column_name from information_schema.columns
+     where table_schema = 'public' and table_name = 'oca_game_participants'`,
+  );
+  const hasOcaPosition = ocaParticipantColumns.rows.some((row) => row.column_name === 'position');
+
+  const ocaPositionRange = await pool.query(
+    `select count(*)::int as n from pg_constraint c
+     join pg_class t on t.oid = c.conrelid
+     join pg_namespace ns on ns.oid = t.relnamespace
+     where ns.nspname = 'public' and t.relname = 'oca_game_participants'
+       and c.conname = 'oca_game_participants_position_range'`,
+  );
+  const hasOcaPositionRange = ocaPositionRange.rows[0]?.n > 0;
+
+  const appliedVersions = new Set(migrations.rows.map((row) => row.version));
+  const missingOcaMigrations = ['0015_oca_games', '0016_oca_positions'].filter(
+    (version) => !appliedVersions.has(version),
+  );
+  const ocaTablesPresent = present.has('oca_games') && present.has('oca_game_participants');
+
+  console.log('\nLa Oca del Caos (migraciones 0015 y 0016):');
+  console.log(`  ${ocaTablesPresent ? '✔' : '✖'} tablas oca_games y oca_game_participants`);
+  console.log(`  ${hasOcaPosition ? '✔' : '✖'} columna oca_game_participants.position`);
+  console.log(`  ${hasOcaPositionRange ? '✔' : '✖'} restricción oca_game_participants_position_range (1..40)`);
+  console.log(
+    `  ${missingOcaMigrations.length === 0 ? '✔' : '✖'} migraciones 0015 y 0016 aplicadas${
+      missingOcaMigrations.length > 0 ? ` (pendientes: ${missingOcaMigrations.join(', ')})` : ''
+    }`,
+  );
+
   const healthy =
     missing.length === 0 &&
     missingFunctions.length === 0 &&
+    ocaTablesPresent &&
+    hasOcaPosition &&
+    hasOcaPositionRange &&
+    missingOcaMigrations.length === 0 &&
     hasGroupCode &&
     hasGroupCodeUnique &&
     hasAccessLookup &&
@@ -432,6 +472,20 @@ async function main() {
     }
     if (!fnNames.has('purge_entities')) {
       console.error('  Falta la función purge_entities (migración 0014).');
+    }
+    if (!ocaTablesPresent) {
+      console.error('  Faltan las tablas de La Oca (oca_games, oca_game_participants): aplican 0015 y 0016.');
+    }
+    if (ocaTablesPresent && !hasOcaPosition) {
+      console.error('  Falta la columna oca_game_participants.position (migración 0016).');
+    }
+    if (hasOcaPosition && !hasOcaPositionRange) {
+      console.error('  Falta la restricción oca_game_participants_position_range (migración 0016).');
+    }
+    if (missingOcaMigrations.length > 0) {
+      console.error(
+        `  Migraciones pendientes de La Oca: ${missingOcaMigrations.join(', ')}. Ejecuta \`npm run db:migrate\` (requiere autorización sobre datos reales).`,
+      );
     }
     if (migrations.rows.length === 0) {
       console.error('  No hay migraciones registradas. Ejecuta `npm run db:migrate`.');

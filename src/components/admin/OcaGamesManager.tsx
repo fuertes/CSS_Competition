@@ -2,7 +2,9 @@
 
 import { useMemo, useState, type SubmitEvent } from 'react';
 import type { GroupRow, OcaGameRow } from '@/types';
+import OcaBoard from '@/components/oca/OcaBoard';
 import { createOcaGame, listGroups, listOcaGames } from '@/lib/data/admin';
+import { OCA_BOARD_SIZE } from '@/lib/oca/board';
 import { formatDateTime } from '@/lib/format';
 import { ErrorMessage, InfoMessage, Spinner, SuccessMessage, useAsync } from './AdminUI';
 
@@ -14,10 +16,11 @@ interface OcaGamesData {
 /**
  * Gestión de partidas de La Oca del Caos (panel docente).
  *
- * Permite crear una partida en estado inicial y elegir los grupos que
- * participan. Todavía NO se puede iniciar, finalizar, borrar ni reiniciar una
- * partida, y no se muestran botones para acciones que no existen. Los datos de
- * la competición CSS no se tocan desde aquí.
+ * Permite crear una partida en estado inicial, elegir sus grupos participantes y
+ * consultar el tablero de 40 casillas con la posición de cada grupo. Todavía NO
+ * se puede iniciar, finalizar, borrar, reiniciar ni mover grupos, y no se
+ * muestran botones para acciones que no existen. Los datos de la competición CSS
+ * no se tocan desde aquí.
  */
 export default function OcaGamesManager() {
 	const { data, error, loading, reload } = useAsync<OcaGamesData>(async () => {
@@ -30,6 +33,7 @@ export default function OcaGamesManager() {
 	const [busy, setBusy] = useState(false);
 	const [notice, setNotice] = useState<string | null>(null);
 	const [formError, setFormError] = useState<string | null>(null);
+	const [boardGameId, setBoardGameId] = useState<string | null>(null);
 
 	const selectedSet = useMemo(() => new Set(selected), [selected]);
 
@@ -37,6 +41,7 @@ export default function OcaGamesManager() {
 	if (!data) return <ErrorMessage>{error ?? 'No se pudieron cargar las partidas.'}</ErrorMessage>;
 
 	const { games, groups } = data;
+	const boardGame = games.find((game) => game.id === boardGameId) ?? games[0] ?? null;
 
 	function toggleGroup(id: string) {
 		setSelected((current) =>
@@ -196,11 +201,67 @@ export default function OcaGamesManager() {
 												aria-hidden="true"
 											/>
 											{participant.name}
+											<span className="text-slate-400">· casilla {participant.position}</span>
 										</span>
 									))}
 								</div>
+								<div className="mt-3">
+									<button
+										type="button"
+										className="btn-secondary"
+										onClick={() => setBoardGameId(game.id)}
+										aria-pressed={boardGame?.id === game.id}
+									>
+										Ver tablero
+									</button>
+								</div>
 							</article>
 						))
+					)}
+				</div>
+			</section>
+
+			{/* --------------------------------------- Tablero y posiciones */}
+			<section className="card">
+				<header className="border-b border-slate-100 px-5 py-4">
+					<h2 className="text-base font-semibold text-slate-900">Tablero y posiciones</h2>
+					<p className="mt-0.5 text-sm text-slate-500">
+						Selecciona una partida para ver el tablero de {OCA_BOARD_SIZE} casillas y la posición de
+						cada grupo participante. Es solo lectura.
+					</p>
+				</header>
+
+				<div className="p-5">
+					{games.length === 0 || !boardGame ? (
+						<InfoMessage>
+							Crea una partida para consultar su tablero y las posiciones de los grupos.
+						</InfoMessage>
+					) : (
+						<div className="space-y-4">
+							<div>
+								<label htmlFor="oca-board-game" className="label">
+									Partida
+								</label>
+								<select
+									id="oca-board-game"
+									className="input"
+									value={boardGame.id}
+									onChange={(event) => setBoardGameId(event.target.value)}
+								>
+									{games.map((game) => (
+										<option key={game.id} value={game.id}>
+											{game.name}
+										</option>
+									))}
+								</select>
+							</div>
+
+							{boardGame.participants.length === 0 ? (
+								<InfoMessage>Esta partida todavía no tiene grupos participantes.</InfoMessage>
+							) : (
+								<OcaBoard participants={boardGame.participants} />
+							)}
+						</div>
 					)}
 				</div>
 			</section>
