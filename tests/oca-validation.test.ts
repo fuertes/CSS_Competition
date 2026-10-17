@@ -45,4 +45,18 @@ describe('createOcaGameSchema', () => {
 		expect(result.success).toBe(true);
 		if (result.success) expect(result.data.groupIds).toHaveLength(2);
 	});
+
+	it('ignora cualquier posición enviada por el cliente (no hay campo de posición)', () => {
+		const result = createOcaGameSchema.safeParse({
+			name: 'Partida',
+			groupIds: [UUID_A],
+			position: 40,
+			boardId: 'otro-tablero',
+		});
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(Object.keys(result.data).sort()).toEqual(['groupIds', 'name']);
+			expect(result.data).not.toHaveProperty('position');
+		}
+	});
 });

@@ -13,6 +13,10 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 const migration = readFileSync(join(root, 'database/migrations/0015_oca_games.sql'), 'utf8');
+const positionsMigration = readFileSync(
+	join(root, 'database/migrations/0016_oca_positions.sql'),
+	'utf8',
+);
 const ocaData = readFileSync(join(root, 'src/lib/data/oca.ts'), 'utf8');
 
 const CSS_TABLES = [
@@ -56,6 +60,37 @@ describe('migración 0015 — aislamiento y aditividad', () => {
 
 	it('impide asociar dos veces el mismo grupo a la misma partida', () => {
 		expect(migration.toLowerCase()).toContain('primary key (game_id, group_id)');
+	});
+});
+
+describe('migración 0016 — posiciones persistentes', () => {
+	it('amplía la participación con la columna de posición (mínimo cambio)', () => {
+		const text = positionsMigration.toLowerCase();
+		expect(text).toContain('alter table public.oca_game_participants');
+		expect(text).toContain('add column position integer not null default 1');
+		expect(text).toContain('check (position between 1 and 40)');
+	});
+
+	it('solo altera la tabla de participación de La Oca (nada más)', () => {
+		const altered = positionsMigration.match(/alter\s+table\s+public\.[a-z_]+/gi) ?? [];
+		expect(altered.length).toBeGreaterThan(0);
+		for (const statement of altered) {
+			expect(statement.toLowerCase()).toBe('alter table public.oca_game_participants');
+		}
+	});
+
+	it('es aditiva: no crea tablas ni elimina objetos existentes', () => {
+		const text = positionsMigration.toLowerCase();
+		expect(text).not.toContain('create table');
+		expect(text).not.toContain('drop table');
+		expect(text).not.toContain('drop function');
+		expect(text).not.toContain('drop view');
+	});
+
+	it('no referencia ninguna tabla de la competición CSS', () => {
+		for (const table of CSS_TABLES) {
+			expect(positionsMigration.toLowerCase()).not.toContain(table);
+		}
 	});
 });
 

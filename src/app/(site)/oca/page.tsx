@@ -4,7 +4,9 @@ import Alert from '@/components/ui/Alert';
 import Card from '@/components/ui/Card';
 import ConfigNotice from '@/components/ui/ConfigNotice';
 import EmptyState from '@/components/ui/EmptyState';
+import OcaBoard from '@/components/oca/OcaBoard';
 import { OCA_GAME_NAME } from '@/lib/oca/module';
+import { OCA_BOARD_SIZE } from '@/lib/oca/board';
 import { getPool } from '@/lib/db';
 import { isDatabaseConfigured } from '@/lib/config';
 import { getRequestGroupId } from '@/lib/auth/request-context';
@@ -27,8 +29,10 @@ export const metadata: Metadata = {
  * de esa sesión verificada en el servidor (nunca de la URL ni del cliente), y la
  * consulta filtra por él: un grupo solo ve las partidas en las que participa.
  *
- * En esta fase no hay ninguna mecánica de juego: solo se muestran las partidas
- * creadas por el profesorado en las que participa el grupo.
+ * En esta fase ya se muestra el tablero (40 casillas) y la posición persistente
+ * del grupo, pero sigue sin haber mecánicas de juego: no se mueve ningún grupo,
+ * no hay turnos ni retos. Solo se muestran las partidas en las que participa el
+ * grupo y su posición en cada una.
  */
 export default async function OcaPage() {
 	const configured = isDatabaseConfigured();
@@ -53,13 +57,15 @@ export default async function OcaPage() {
 				<p className="badge border border-brand-200 bg-brand-50 text-brand-700">Nuevo modo de juego</p>
 				<h1 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">{OCA_GAME_NAME}</h1>
 				<p className="mt-2 text-sm text-slate-500">
-					Estás en el área de tu grupo. Aquí aparecen las partidas en las que participa tu grupo.
+					Estás en el área de tu grupo. Aquí aparecen las partidas en las que participa tu grupo y
+					su posición en el tablero.
 				</p>
 			</header>
 
 			<Alert variant="info" title="Juego en preparación">
-				Todavía no se puede jugar. El tablero, los turnos y los retos se implementarán en fases
-				posteriores; de momento solo se consultan las partidas creadas por el profesorado.
+				El tablero ya está disponible, pero todavía no se puede jugar: el movimiento, los turnos y
+				los retos se implementarán en fases posteriores. De momento solo se consulta la posición de
+				tu grupo.
 			</Alert>
 
 			{!configured || !pool ? (
@@ -78,55 +84,52 @@ export default async function OcaPage() {
 						Inténtalo de nuevo dentro de un momento.
 					</Alert>
 				</div>
-			) : (
+			) : games.length === 0 ? (
 				<Card
 					title="Tus partidas"
-					description={
-						games.length === 0
-							? 'Cuando el profesorado te asigne una partida, aparecerá aquí.'
-							: 'Partidas en estado inicial en las que participa tu grupo.'
-					}
+					description="Cuando el profesorado te asigne una partida, aparecerá aquí."
 					className="mt-6"
 				>
-					{games.length === 0 ? (
-						<EmptyState
-							icon="flag"
-							title="Sin partidas todavía"
-							description="Tu grupo aún no participa en ninguna partida de La Oca del Caos."
-						/>
-					) : (
-						<ul className="space-y-3">
-							{games.map((game) => (
-								<li key={game.id} className="rounded-xl border border-slate-200 p-4">
-									<div className="flex flex-wrap items-center justify-between gap-2">
-										<p className="text-sm font-semibold text-slate-900">{game.name}</p>
-										<span className="badge border border-slate-200 bg-slate-50 text-slate-600">
-											Creada
-										</span>
-									</div>
-									<p className="mt-1 text-xs text-slate-400">
-										Creada el {formatDateTime(game.created_at)}
-									</p>
-									<div className="mt-3 flex flex-wrap gap-2">
-										{game.participants.map((participant) => (
-											<span
-												key={participant.id}
-												className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700"
-											>
-												<span
-													className="h-2.5 w-2.5 rounded-full"
-													style={{ backgroundColor: participant.color }}
-													aria-hidden="true"
-												/>
-												{participant.name}
-											</span>
-										))}
-									</div>
-								</li>
-							))}
-						</ul>
-					)}
+					<EmptyState
+						icon="flag"
+						title="Sin partidas todavía"
+						description="Tu grupo aún no participa en ninguna partida de La Oca del Caos."
+					/>
 				</Card>
+			) : (
+				<div className="mt-6 space-y-6">
+					<h2 className="text-lg font-semibold text-slate-900">Tus partidas</h2>
+					{games.map((game) => {
+						const own = game.participants.find((participant) => participant.id === groupId);
+						return (
+							<Card
+								key={game.id}
+								title={game.name}
+								description={`Creada el ${formatDateTime(game.created_at)} · ${game.participants.length} grupo(s) participante(s)`}
+							>
+								{own ? (
+									<p className="mb-4 text-sm text-slate-600">
+										Tu posición:{' '}
+										<span className="font-semibold text-brand-700">
+											casilla {own.position}
+										</span>{' '}
+										de {OCA_BOARD_SIZE}.
+									</p>
+								) : (
+									<div className="mb-4">
+										<Alert variant="error" title="No figuras como participante">
+											Tu grupo no aparece en esta partida. Avisa al profesorado.
+										</Alert>
+									</div>
+								)}
+								<OcaBoard
+									participants={game.participants}
+									highlightGroupId={groupId ?? undefined}
+								/>
+							</Card>
+						);
+					})}
+				</div>
 			)}
 
 			<div className="mt-6">

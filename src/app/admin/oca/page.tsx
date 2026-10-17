@@ -22,8 +22,8 @@ export default function AdminOcaPage() {
 			<div>
 				<h1 className="text-xl font-bold text-slate-900">{OCA_GAME_NAME}</h1>
 				<p className="text-sm text-slate-500">
-					Crea partidas y asigna los grupos participantes. El juego (tablero, turnos y retos) se
-					implementará en fases posteriores.
+					Crea partidas, asigna los grupos participantes y consulta el tablero con sus posiciones.
+					El movimiento, los turnos y los retos se implementarán en fases posteriores.
 				</p>
 			</div>
 

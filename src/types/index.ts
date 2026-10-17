@@ -437,6 +437,8 @@ export interface OcaGameParticipant {
 	id: string;
 	name: string;
 	color: string;
+	/** Casilla del tablero (1..40) en la que se encuentra el grupo. */
+	position: number;
 	joined_at: string;
 }
 

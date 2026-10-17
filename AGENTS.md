@@ -73,21 +73,24 @@ src/
   app/
     layout.tsx          # <html>/<body>, metadatos por defecto y estilos globales
     globals.css
+    page.tsx            # /                 portada (landing a medida, fuera de (site))
     (site)/             # Sitio público (Header + Footer + "saltar al contenido")
-      page.tsx          # /                 portada
       ranking/page.tsx  # /ranking          clasificación en vivo
       alumnos/page.tsx  # /alumnos          portal del alumno
       login/page.tsx    # /login            acceso del profesorado
       competicion/…     # /competicion, /competicion/entrar
-      oca/page.tsx      # /oca             La Oca del Caos (en preparación)
+      oca/page.tsx      # /oca             La Oca: tablero y posiciones (solo lectura)
     admin/              # Panel docente (protegido): layout + páginas
     api/                # Route Handlers (ver §7 y §10)
   components/           # Componentes (los interactivos llevan 'use client')
+    marketing/          # Portada (presentacional)
+    oca/                # Tablero de La Oca (presentacional, solo lectura)
   lib/                  # Lógica de negocio y acceso a datos (ver abajo)
     auth/route-guards.ts# Clasificación de rutas protegidas (puro, testeable)
-    oca/module.ts       # Identidad del módulo La Oca del Caos (en preparación)
+    oca/module.ts       # Identidad del módulo La Oca del Caos
+    oca/board.ts        # Tablero de 40 casillas y zonas (puro y determinista)
   types/index.ts        # Tipos del dominio y de las filas de PostgreSQL
-database/migrations/    # Migraciones SQL numeradas 0001–0014 (fuente del esquema)
+database/migrations/    # Migraciones SQL numeradas 0001–0016 (fuente del esquema)
 scripts/                # Migración, comprobación, datos de prueba y smoke E2E
 tests/                  # Suites de Vitest sobre la lógica pura
 ```
@@ -96,14 +99,17 @@ Límite **servidor/cliente** en `src/lib/` (respétalo):
 
 * **Solo servidor** (`import 'server-only'`): `db.ts`, `config.ts`,
   `data/postgres.ts`, `data/competition.ts`, `data/maintenance.ts`,
+  `data/oca.ts`,
   `auth/session.ts`, `auth/group-session.ts`, `auth/request-context.ts`.
 * **Seguros en cliente**: `data/admin.ts`, `data/ranking.ts`, `format.ts`,
   `ranking.ts`, `codes.ts`, `maintenance.ts`, `competition/draft.ts`,
   `crypto/access-code.ts`, `validation.ts`, `scoring.ts`, `types`,
-  `auth/route-guards.ts`, `oca/module.ts`.
+  `auth/route-guards.ts`, `oca/module.ts`, `oca/board.ts`,
+  `oca/participants.ts`.
 
 Los componentes de `src/components/**/*.tsx` llevan `'use client'` cuando
-necesitan interactividad; los de `src/components/ui/*.tsx` son de servidor.
+necesitan interactividad; los de `src/components/ui/*.tsx` y
+`src/components/oca/*.tsx` son de servidor.
 
 ## 5. Diseño y experiencia de usuario
 
@@ -208,7 +214,7 @@ No implementes estas reglas únicamente mediante validaciones de interfaz.
 * Acceso centralizado mediante un único `pg.Pool` en `src/lib/db.ts`, creado desde
   `DATABASE_URL` (solo servidor) y reutilizado. Devuelve `null` si no está
   configurado.
-* El esquema se define en `database/migrations/` (0001–0014). **No edites una
+* El esquema se define en `database/migrations/` (0001–0016). **No edites una
   migración ya aplicada**: añade una nueva.
 * El ranking público se obtiene por **sondeo periódico** de `GET /api/ranking` (hay
   una costura preparada para evolucionar a SSE/WebSocket). No hay Supabase ni
@@ -262,7 +268,7 @@ Después de cambios relevantes, ejecuta en este orden:
 
 1. `npm run typecheck` (`tsc --noEmit`).
 2. `npm run lint` (`eslint`).
-3. `npm test` (Vitest; hoy 13 suites / 186 pruebas sobre la lógica pura).
+3. `npm test` (Vitest; hoy 18 suites / 239 pruebas sobre la lógica pura).
 4. `npm run build` (`next build`).
 5. Si hay base de datos disponible: `npm run db:check` (conexión + esquema, **solo
    lectura**).

@@ -1,6 +1,7 @@
 import 'server-only';
 import type { Pool } from 'pg';
 import { run, toIso, withTransaction } from '@/lib/data/postgres';
+import { OCA_INITIAL_POSITION } from '@/lib/oca/board';
 import { normalizeOcaGroupIds } from '@/lib/oca/participants';
 import type { OcaGameForGroup, OcaGameParticipant, OcaGameRow, OcaGameStatus } from '@/types';
 
@@ -8,10 +9,14 @@ import type { OcaGameForGroup, OcaGameParticipant, OcaGameRow, OcaGameStatus } f
  * Acceso a datos de La Oca del Caos (solo servidor).
  *
  * Fase 2: persistencia de partidas en estado inicial y de sus grupos
- * participantes. Este módulo escribe EXCLUSIVAMENTE en `oca_games` y
- * `oca_game_participants`; nunca toca las tablas de la competición CSS ni la
- * puntuación del ranking. El grupo se recibe siempre como parámetro (procedente
- * de la sesión verificada por el servidor), nunca del cuerpo de la petición.
+ * participantes. Fase 3: posición persistente de cada participante en el
+ * tablero de 40 casillas (solo lectura; sin movimiento).
+ *
+ * Este módulo escribe EXCLUSIVAMENTE en `oca_games` y `oca_game_participants`;
+ * nunca toca las tablas de la competición CSS ni la puntuación del ranking. El
+ * grupo se recibe siempre como parámetro (procedente de la sesión verificada
+ * por el servidor), nunca del cuerpo de la petición, y la posición de un grupo
+ * procede del servidor, no del cliente.
  */
 
 interface OcaGameDbRow {
@@ -35,11 +40,12 @@ interface OcaParticipantDbRow {
 	id: string;
 	name: string;
 	color: string;
+	position: number;
 	joined_at: Date;
 }
 
 /** Participantes de una partida, con los datos públicos del grupo. */
-const SELECT_PARTICIPANTS_SQL = `select p.game_id, g.id, g.name, g.color, p.joined_at
+const SELECT_PARTICIPANTS_SQL = `select p.game_id, g.id, g.name, g.color, p.position, p.joined_at
 	from public.oca_game_participants p
 	join public.groups g on g.id = p.group_id
 	where p.game_id = any($1::uuid[])
@@ -50,6 +56,7 @@ function mapParticipant(row: OcaParticipantDbRow): OcaGameParticipant {
 		id: row.id,
 		name: row.name,
 		color: row.color,
+		position: row.position,
 		joined_at: toIso(row.joined_at) ?? '',
 	};
 }
@@ -146,6 +153,9 @@ export interface CreateOcaGameData {
  * 2. Comprueba en el servidor que TODOS los grupos existen y están activos.
  * 3. Inserta la partida y sus participantes dentro de una única transacción:
  *    si algo falla, no queda una partida a medias.
+ *
+ * Todas las posiciones se inicializan en la casilla 1 (`OCA_INITIAL_POSITION`).
+ * El cliente NUNCA elige la posición: procede de esta constante del tablero.
  */
 export async function createOcaGame(pool: Pool, input: CreateOcaGameData): Promise<OcaGameRow> {
 	const groupIds = normalizeOcaGroupIds(input.groupIds);
@@ -171,14 +181,14 @@ export async function createOcaGame(pool: Pool, input: CreateOcaGameData): Promi
 		const game = rows[0]!;
 
 		await client.query(
-			`insert into public.oca_game_participants (game_id, group_id)
-			 select $1::uuid, g.id from unnest($2::uuid[]) as g(id)`,
-			[game.id, groupIds],
+			`insert into public.oca_game_participants (game_id, group_id, position)
+			 select $1::uuid, g.id, $3::int from unnest($2::uuid[]) as g(id)`,
+			[game.id, groupIds, OCA_INITIAL_POSITION],
 		);
 
 		const { rows: participantRows } = await client.query<OcaParticipantDbRow>(
 			SELECT_PARTICIPANTS_SQL,
-			[game.id],
+			[[game.id]],
 		);
 		const participants = groupParticipants(participantRows).get(game.id) ?? [];
 
